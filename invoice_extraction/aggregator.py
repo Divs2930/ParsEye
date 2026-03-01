@@ -123,6 +123,7 @@ class Aggregator:
             return inv
 
         line_items = result.data.line_items or []
+        exclusive_vat = result.data.sub_total_exclusive
 
         if not line_items:
             inv.valid = False
@@ -142,7 +143,7 @@ class Aggregator:
 
         # ── Build ProductRow per group ────────────────────────────────────────
         for family, items in groups.items():
-            row, ok, warn = self._build_product_row(family, items)
+            row, ok, warn = self._build_product_row(family, items, exclusive_vat)
             if not ok:
                 inv.valid = False
                 inv.warning = warn
@@ -164,7 +165,7 @@ class Aggregator:
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
-    def _build_product_row(self, family: str, items: list[LineItem]) -> tuple[ProductRow | None, bool, str]:
+    def _build_product_row(self, family: str, items: list[LineItem], exclusive_vat: bool) -> tuple[ProductRow | None, bool, str]:
         """
         Aggregate a list of LineItems into a single ProductRow.
 
@@ -199,8 +200,11 @@ class Aggregator:
 
         # Unit price — show if all variants share the same price, blank if mixed
         unit_price = prices.pop() if len(prices) == 1 else ""
-
-        sub_total = total_amt - total_vat
+        if not exclusive_vat:
+            sub_total = total_amt - total_vat
+        else:
+            sub_total = total_amt
+            total_amt = sub_total + total_vat
 
         row = ProductRow(
             product_family=family,

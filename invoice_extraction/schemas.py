@@ -70,6 +70,7 @@ class InvoiceData(BaseModel):
         default="",
         description="Subtotal before VAT — copy exactly as printed, do not compute",
     )
+    sub_total_exclusive: bool = Field(default=False, description="Whether the subtotal is exclusive of VAT")
     vat_total: Optional[str] = Field(
         default="",
         description="Total VAT amount — copy exactly as printed, do not compute",

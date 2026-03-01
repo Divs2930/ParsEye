@@ -62,6 +62,8 @@ Examples:
   'ELLIS BROWN C/CREAMER CARTON 12X750G' -> 'ELLIS BROWN C/CREAMER'
   'PAMPERS ACTIVE BABY SIZE 3 MEGA PACK' -> 'PAMPERS ACTIVE BABY'
   'GOLD HUGGIES NAPPIES SIZE 4'          -> 'GOLD HUGGIES NAPPIES'
+
+NOTE: Do check if subtotal is VAT-exclusive or inclusive. If the invoice explicitly states "Subtotal (exclusive)" or similar, set sub_total_exclusive to true. Otherwise, leave it false.
 """
 
 

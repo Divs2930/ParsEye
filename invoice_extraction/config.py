@@ -16,7 +16,7 @@ load_dotenv()
 class AppConfig:
     """Application-level settings."""
 
-    DEFAULT_MODEL: str = "gemini-2.0-flash"
+    DEFAULT_MODEL: str = "gemini-2.5-flash"
     SUPPORTED_FORMATS: tuple[str, ...] = ("pdf", "png", "jpg", "jpeg", "webp", "bmp", "tiff")
     MAX_FILE_SIZE_MB: int = 50
 
@@ -33,7 +33,7 @@ class PDFConfig:
 class ExtractionConfig:
     """LLM extraction settings."""
 
-    MAX_RETRIES: int = 5
+    MAX_RETRIES: int = 3
     RETRY_MULTIPLIER: int = 1
     RETRY_MIN_WAIT: int = 2
     RETRY_MAX_WAIT: int = 30

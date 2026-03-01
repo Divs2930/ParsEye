@@ -10,11 +10,12 @@ from dataclasses import dataclass
 import invoice_extraction.config  # noqa: F401 — ensures load_dotenv() runs
 
 from .logging_config import get_logger
+from .config import AppConfig
 
 logger = get_logger("gemini")
 
 RECOMMENDED_MODELS = [
-    "gemini-3-flash-preview",
+    AppConfig.DEFAULT_MODEL,
 ]
 
 
