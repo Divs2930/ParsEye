@@ -9,6 +9,31 @@ CUSTOM_CSS = """
 <style>
     .main, .stApp { background-color: #0f1117; }
 
+    /* Hide the default Streamlit sidebar */
+    [data-testid="stSidebar"] { display: none; }
+    [data-testid="stSidebarCollapsedControl"] { display: none; }
+
+    /* Top status bar */
+    .top-status-bar {
+        display: flex; align-items: center; justify-content: space-between;
+        background: #1a1f2e; border: 1px solid #2d3748;
+        border-radius: 10px; padding: 10px 20px; margin-bottom: 16px;
+    }
+    .status-indicator {
+        display: flex; align-items: center; gap: 8px;
+    }
+    .status-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        display: inline-block; flex-shrink: 0;
+    }
+    .status-text {
+        font-size: 13px; color: #a0aec0;
+    }
+    .model-label {
+        font-size: 13px; color: #718096;
+    }
+    .model-label strong { color: #a0aec0; }
+
     .header-box {
         background: linear-gradient(135deg, #1a1f2e, #252d3d);
         border: 1px solid #2d3748; border-radius: 12px;
@@ -40,6 +65,17 @@ CUSTOM_CSS = """
     }
     .stButton > button:hover {
         background: linear-gradient(135deg, #2b6cb0, #2c5282);
+    }
+
+    /* Reduce gap between expanders */
+    .stExpander {
+        margin-bottom: 4px !important;
+    }
+
+    /* Side-by-side invoice preview */
+    .invoice-preview-container {
+        border: 1px solid #2d3748; border-radius: 8px;
+        overflow: hidden; background: #1a1f2e;
     }
 </style>
 """

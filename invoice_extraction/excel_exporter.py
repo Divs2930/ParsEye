@@ -20,7 +20,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from .aggregator import AggregatedInvoice
-from .config import ExcelColors
+from .config import CURRENCY_SYMBOLS, ExcelColors
 from .logging_config import get_logger
 
 if TYPE_CHECKING:
@@ -211,7 +211,7 @@ class ExcelExporter:
             c = self.COLS
             self._write_cell(ws, row, c["product_name"], product.product_family, row_bg)
             self._write_cell(ws, row, c["quantity"], self._fmt(product.quantity), row_bg, align="right")
-            self._write_cell(ws, row, c["rate"], product.unit_price, row_bg, align="right")
+            self._write_cell(ws, row, c["rate"], self._to_number(product.unit_price), row_bg, align="right")
             self._write_cell(ws, row, c["vat"], self._fmt(product.vat), row_bg, align="right")
             self._write_cell(ws, row, c["sub_total"], self._fmt(product.sub_total), row_bg, align="right")
             self._write_cell(ws, row, c["total"], self._fmt(product.total), row_bg, align="right")
@@ -271,6 +271,19 @@ class ExcelExporter:
     def _fmt(self, value: float) -> float:
         """Round to 2 decimal places for display."""
         return round(value, 2)
+
+    def _to_number(self, value: str) -> float | str:
+        """Convert a string value to float if possible, stripping currency symbols and commas."""
+        if not value:
+            return ""
+        cleaned = str(value).replace(",", "").replace(" ", "")
+        for sym in CURRENCY_SYMBOLS:
+            cleaned = cleaned.replace(sym, "")
+        cleaned = cleaned.strip()
+        try:
+            return float(cleaned)
+        except ValueError:
+            return value  # keep original if not parseable
 
     def _set_column_widths(self, ws: Worksheet) -> None:
         widths = {
@@ -404,10 +417,10 @@ class ExcelExporter:
                     item.supp_code or "",
                     item.product_family or "",
                     item.description or "",
-                    item.quantity or "",
-                    item.unit_price or "",
-                    item.vat_amount or "",
-                    item.line_total or "",
+                    self._to_number(item.quantity or ""),
+                    self._to_number(item.unit_price or ""),
+                    self._to_number(item.vat_amount or ""),
+                    self._to_number(item.line_total or ""),
                 ]
                 for col, value in enumerate(values, start=1):
                     align = "right" if col >= 11 else "left"

@@ -3,7 +3,7 @@ app.py
 Invoice Parser — main Streamlit application entry point.
 
 Thin orchestration layer — all logic lives in dedicated modules:
-  - ui/         → styles, sidebar, session state, results display
+  - ui/         → styles, status bar, session state, results display
   - file_handler → file-to-image conversion
   - invoice_extractor → LLM extraction
 """
@@ -19,14 +19,16 @@ from invoice_extraction.logging_config import setup_logging
 from invoice_extraction.pdf_processor import PageImage
 from invoice_extraction.ui.results import render_results
 from invoice_extraction.ui.session import (
+    clear_page_images,
     clear_results,
     clear_stop,
     get_results,
     is_stop_requested,
     request_stop,
     set_results,
+    store_page_images,
 )
-from invoice_extraction.ui.sidebar import render_sidebar
+from invoice_extraction.ui.sidebar import render_status_bar
 from invoice_extraction.ui.styles import apply_styles
 
 setup_logging()
@@ -40,12 +42,11 @@ st.set_page_config(
     page_title="Invoice Parser",
     page_icon="🧾",
     layout="wide",
-    initial_sidebar_state="expanded",
 )
 
 apply_styles()
 
-api_key, model_choice, export_filename, status = render_sidebar(APP.DEFAULT_MODEL)
+api_key, model_choice, export_filename, status = render_status_bar(APP.DEFAULT_MODEL)
 
 
 # ── Main UI ───────────────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ if uploaded_files:
         st.error(f"File(s) exceed {APP.MAX_FILE_SIZE_MB}MB limit: {', '.join(oversized)}")
         st.stop()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     total_kb = sum(f.size for f in uploaded_files) / 1024
     with col1:
         st.markdown(
@@ -87,17 +88,11 @@ if uploaded_files:
             f'<div class="metric-card"><div class="val">{total_kb:.0f} KB</div><div class="lbl">Total Size</div></div>',
             unsafe_allow_html=True,
         )
-    with col3:
-        safe_model = html.escape(model_choice.split(":")[0])
-        st.markdown(
-            f'<div class="metric-card"><div class="val">{safe_model}</div><div class="lbl">Model</div></div>',
-            unsafe_allow_html=True,
-        )
 
     st.markdown("---")
 
     if not api_key:
-        st.info("Enter your Gemini API key in the sidebar to get started.")
+        st.info("Enter your Gemini API key to get started.")
     elif not status.connected:
         st.error(f"Gemini API error: {html.escape(str(status.error))}")
     else:
@@ -144,6 +139,9 @@ if uploaded_files:
                 all_pages.extend(pages)
                 f.seek(0)
 
+            # Store page images for side-by-side preview
+            store_page_images(all_pages)
+
             if rerun_mode and target_filename and target_page:
                 pages_to_process = [
                     p for p in all_pages if p.source_filename == target_filename and p.page_number == target_page
@@ -160,6 +158,8 @@ if uploaded_files:
                 all_results = existing
             else:
                 clear_results()
+                clear_page_images()
+                store_page_images(all_pages)
                 pages_to_process = all_pages
                 all_results = []
 

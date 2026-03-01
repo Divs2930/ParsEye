@@ -1,6 +1,6 @@
 """
 results.py
-Results display — metric cards, per-invoice expanders, and Excel download button.
+Results display — side-by-side invoice preview + extracted data, metrics, and Excel download.
 """
 
 import os
@@ -10,10 +10,11 @@ import streamlit as st
 from ..aggregator import Aggregator
 from ..excel_exporter import ExcelExporter
 from ..invoice_extractor import ExtractionResult
+from .session import get_page_images
 
 
 def render_results(results: list[ExtractionResult], export_filename: str) -> None:
-    """Render results cards, metrics, and Excel download button."""
+    """Render results with side-by-side invoice image and extracted data."""
     aggregator = Aggregator()
     aggregated = [aggregator.aggregate(r) for r in results]
 
@@ -51,56 +52,35 @@ def render_results(results: list[ExtractionResult], export_filename: str) -> Non
             unsafe_allow_html=True,
         )
 
-    # Per-invoice expandable cards
+    st.markdown("<div style='margin-top: 24px;'></div>", unsafe_allow_html=True)
+
+    page_images = get_page_images()
+
+    # Per-invoice expandable cards with side-by-side preview
     for result, agg in zip(results, aggregated):
         icon = "+" if agg.valid else ("!" if result.success else "x")
         with st.expander(f"{icon} {result.display_name}", expanded=False):
-            if result.success:
-                d = result.data
+            image_key = f"{result.source_filename}::{result.page_number}"
+            has_image = image_key in page_images
 
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.markdown("**Invoice Info**")
-                    for key in ["document_number", "document_date", "vat_number"]:
-                        if val := getattr(d, key, ""):
-                            st.text(f"{key.replace('_', ' ').title()}: {val}")
-                with col_b:
-                    st.markdown("**Amounts**")
-                    for key in ["subtotal", "vat_total", "total"]:
-                        if val := getattr(d, key, ""):
-                            st.text(f"{key.replace('_', ' ').title()}: {val}")
+            if has_image:
+                col_img, col_data = st.columns([1, 1])
+            else:
+                col_img = None
+                col_data = st.container()
 
-                st.markdown("**Vendor**")
-                st.text(d.vendor_name or "—")
-                st.markdown("**Client**")
-                st.text(d.client_name or "—")
+            # Left column: invoice image
+            if has_image and col_img is not None:
+                with col_img:
+                    st.markdown("**Original Invoice**")
+                    st.image(page_images[image_key], use_container_width=True)
 
-                # Raw line items
-                if d.line_items:
-                    st.markdown(f"**Raw Line Items ({len(d.line_items)})**")
-                    st.dataframe(
-                        [item.model_dump() for item in d.line_items],
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-
-                # Aggregated product rows
-                if agg.valid and agg.product_rows:
-                    st.markdown(f"**Aggregated Product Rows ({len(agg.product_rows)})**")
-                    preview = [
-                        {
-                            "Product": r.product_family,
-                            "Qty": r.quantity,
-                            "Rate": r.unit_price,
-                            "VAT": round(r.vat, 2),
-                            "Sub Total": round(r.sub_total, 2),
-                            "Total": round(r.total, 2),
-                        }
-                        for r in agg.product_rows
-                    ]
-                    st.dataframe(preview, use_container_width=True, hide_index=True)
-                elif not agg.valid:
-                    st.warning(f"Aggregation issue: {agg.warning}")
+            # Right column: extracted data
+            with col_data:
+                if result.success:
+                    _render_extracted_data(result, agg)
+                else:
+                    st.error(f"Extraction failed: {result.error}")
 
     # Excel download
     st.markdown("---")
@@ -115,7 +95,6 @@ def render_results(results: list[ExtractionResult], export_filename: str) -> Non
     exporter = ExcelExporter()
     excel_bytes = exporter.export(aggregated, raw_results=results)
 
-    # Sanitize export filename
     safe_export = os.path.basename(export_filename).strip() or "invoices_extracted"
     fname = safe_export if safe_export.endswith(".xlsx") else safe_export + ".xlsx"
 
@@ -127,3 +106,54 @@ def render_results(results: list[ExtractionResult], export_filename: str) -> Non
         use_container_width=True,
     )
     st.caption("2 sheets: Invoices (aggregated) · Raw Extraction (all line items as extracted)")
+
+
+def _render_extracted_data(result: ExtractionResult, agg) -> None:
+    """Render the extracted data for a single invoice."""
+    d = result.data
+
+    st.markdown("**Extracted Data**")
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.markdown("**Invoice Info**")
+        for key in ["document_number", "document_date", "vat_number"]:
+            if val := getattr(d, key, ""):
+                st.text(f"{key.replace('_', ' ').title()}: {val}")
+    with col_b:
+        st.markdown("**Amounts**")
+        for key in ["subtotal", "vat_total", "total"]:
+            if val := getattr(d, key, ""):
+                st.text(f"{key.replace('_', ' ').title()}: {val}")
+
+    st.markdown("**Vendor**")
+    st.text(d.vendor_name or "—")
+    st.markdown("**Client**")
+    st.text(d.client_name or "—")
+
+    # Raw line items
+    if d.line_items:
+        st.markdown(f"**Raw Line Items ({len(d.line_items)})**")
+        st.dataframe(
+            [item.model_dump() for item in d.line_items],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    # Aggregated product rows
+    if agg.valid and agg.product_rows:
+        st.markdown(f"**Aggregated Product Rows ({len(agg.product_rows)})**")
+        preview = [
+            {
+                "Product": r.product_family,
+                "Qty": r.quantity,
+                "Rate": r.unit_price,
+                "VAT": round(r.vat, 2),
+                "Sub Total": round(r.sub_total, 2),
+                "Total": round(r.total, 2),
+            }
+            for r in agg.product_rows
+        ]
+        st.dataframe(preview, use_container_width=True, hide_index=True)
+    elif not agg.valid:
+        st.warning(f"Aggregation issue: {agg.warning}")
